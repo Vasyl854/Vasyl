@@ -45,9 +45,10 @@ void gen_compound_statement(FILE* outFile);
 void generateCCode(FILE* outFile)
 {
     fprintf(outFile, "#include <stdio.h>\n");
-    fprintf(outFile, "#include <stdlib.h>\n");
-    fprintf(outFile, "#include <stdint.h>\n\n");
+    fprintf(outFile, "#include <stdlib.h>\n"); 
+    fprintf(outFile, "#include <stdint.h>\n\n"); 
     fprintf(outFile, "int main() \n{\n");
+
     gen_variable_declaration(outFile);
     fprintf(outFile, ";\n");
     pos++;
@@ -63,7 +64,7 @@ void gen_variable_declaration(FILE* outFile)
 {
     if (TokenTable[pos + 1].type == Type)
     {
-        fprintf(outFile, "   int16_t ");
+        fprintf(outFile, "   int16_t   ");
         pos++;
         pos++;
         gen_variable_list(outFile);
@@ -85,16 +86,10 @@ void gen_variable_list(FILE* outFile)
 // <тіло програми> = <оператор> ';' { <оператор> ';' }
 void gen_program_body(FILE* outFile)
 {
-    while (pos < TokensNum && TokenTable[pos].type != EndProgram)
+    do
     {
         gen_statement(outFile);
-    }
-
-    if (pos >= TokensNum || TokenTable[pos].type != EndProgram)
-    {
-        printf("Error: 'EndProgram' token not found or unexpected end of tokens.\n");
-        exit(1);
-    }
+    } while (TokenTable[pos].type != EndProgram);
 }
 
 // <оператор> = <присвоїння> | <ввід> | <вивід> | <умовний оператор> | <складений оператор>
@@ -107,7 +102,7 @@ void gen_statement(FILE* outFile)
     case If: gen_conditional(outFile); break;
     case StartProgram: gen_compound_statement(outFile); break;
     case Goto: gen_goto_statement(outFile); break;
-    case Label: gen_label_statement(outFile); break;
+
     case For:
     {
         int temp_pos = pos + 1;
@@ -142,7 +137,12 @@ void gen_statement(FILE* outFile)
         pos += 2; 
         break;
     case Repeat: gen_repeat_until(outFile); break;
-    default: gen_assignment(outFile);
+   // default: gen_assignment(outFile);
+    default:
+        if (TokenTable[pos + 1].type == Colon)
+            gen_label_statement(outFile);
+        else
+            gen_assignment(outFile);
     }
 }
 
@@ -154,7 +154,7 @@ void gen_assignment(FILE* outFile)
     fprintf(outFile, " = ");
     pos++;
     gen_arithmetic_expression(outFile);
-    pos++;
+    //pos++;
     fprintf(outFile, ";\n");
 }
 
@@ -181,10 +181,10 @@ void gen_term(FILE* outFile)
     {
         if (TokenTable[pos].type == Mul)
             fprintf(outFile, " * ");
-        if (TokenTable[pos].type == Div)
-            fprintf(outFile, " / ");
         if (TokenTable[pos].type == Mod)
             fprintf(outFile, " %% ");
+        if (TokenTable[pos].type == Div)
+            fprintf(outFile, " / ");
         pos++;
         gen_factor(outFile);
     }
@@ -193,8 +193,15 @@ void gen_term(FILE* outFile)
 // <множник> = <≥дентиф≥катор> | <число> | '(' <арифметичний вираз> ')'
 void gen_factor(FILE* outFile)
 {
-    if (TokenTable[pos].type == Identifier || TokenTable[pos].type == Number)
-        fprintf(outFile, TokenTable[pos++].name);
+    if (TokenTable[pos].type == Identifier || TokenTable[pos].type == Number) {
+        if (TokenTable[pos - 1].type != Mod1 && TokenTable[pos - 1].type != Mod2) {
+            fprintf(outFile, TokenTable[pos++].name);
+        }
+        else
+        {
+            pos++;
+        }
+    }
     else
         if (TokenTable[pos].type == LBraket)
         {
@@ -213,21 +220,21 @@ void gen_input(FILE* outFile)
     fprintf(outFile, TokenTable[pos + 1].name);
     fprintf(outFile, ":\");\n");
     fprintf(outFile, "   scanf(\"%%hd\", &");
-    pos++;
+    pos+=1;
     fprintf(outFile, TokenTable[pos++].name);
     fprintf(outFile, ");\n");
-    pos++;
+    //pos++;
 }
 
 // <вив≥д> = 'output' <≥дентиф≥катор>
 void gen_output(FILE* outFile)
 {
-    pos++;
+    pos++; 
 
-    if (TokenTable[pos].type == Minus && TokenTable[pos + 1].type == Number)
+    if (TokenTable[pos].type == Sub && TokenTable[pos + 1].type == Number)
     {
         fprintf(outFile, "   printf(\"%%d\\n\", -%s);\n", TokenTable[pos + 1].name);
-        pos += 2;
+        pos += 2; 
     }
     else
     {
@@ -235,17 +242,9 @@ void gen_output(FILE* outFile)
         gen_arithmetic_expression(outFile);
         fprintf(outFile, ");\n");
     }
-
-    if (TokenTable[pos].type == Semicolon)
-    {
-        pos++;
-    }
-    else
-    {
-        printf("Error: Expected a semicolon at the end of 'Output' statement.\n");
-        exit(1);
-    }
+    //pos+=2;
 }
+
 
 
 
@@ -257,80 +256,100 @@ void gen_conditional(FILE* outFile)
     pos++;
     gen_logical_expression(outFile);
     fprintf(outFile, ")\n");
-    gen_statement(outFile);
+    fprintf(outFile, "{\n");
+    while (TokenTable[pos].type != Semicolon)
+    {
+        gen_statement(outFile);
+    } 
+    fprintf(outFile, "}\n");
+    pos++;
     if (TokenTable[pos].type == Else)
     {
+
         fprintf(outFile, "   else\n");
         pos++;
-        gen_statement(outFile);
+        fprintf(outFile, "{\n");
+        do
+        {
+            gen_statement(outFile);
+        } while (TokenTable[pos].type != Semicolon);
+        fprintf(outFile, "}\n");
+        pos++;
+        
     }
+    
 }
 
 void gen_goto_statement(FILE* outFile)
 {
     fprintf(outFile, "   goto %s;\n", TokenTable[pos + 1].name);
-    pos += 3;
+    pos += 2;
 }
 
 void gen_label_statement(FILE* outFile)
 {
-    fprintf(outFile, "%s:\n", TokenTable[pos].name); 
+    fprintf(outFile, "%s:\n", TokenTable[pos].name);
+    pos++;
     pos++;
 }
 
 void gen_for_to_do(FILE* outFile)
 {
-    int temp_pos = pos + 1; 
-
-    const char* loop_var = TokenTable[temp_pos].name;
-    temp_pos += 2; 
-
-    fprintf(outFile, "   for (int16_t %s = ", loop_var);
-    pos = temp_pos; 
-    gen_arithmetic_expression(outFile); 
+    pos++;
+    char* varName = TokenTable[pos].name;
+    fprintf(outFile, "   for (");
+    fprintf(outFile, varName);
+    fprintf(outFile, " = ");
+    pos += 2;
+    fprintf(outFile, TokenTable[pos].name);
     fprintf(outFile, "; ");
-
-    while (TokenTable[pos].type != To && pos < TokensNum)
+    pos += 2;
+    fprintf(outFile, TokenTable[pos].name);
+    fprintf(outFile, " >= ");
+    fprintf(outFile, varName);
+    fprintf(outFile, "; ");
+    fprintf(outFile, varName);
+    fprintf(outFile, "++)\n   {\n");
+    pos += 2;
+    do
     {
-        pos++;
-    }
-
-    if (TokenTable[pos].type == To)
-    {
-        pos++; 
-        fprintf(outFile, "%s <= ", loop_var);
-        gen_arithmetic_expression(outFile); 
-    }
-    else
-    {
-        printf("Error: Expected 'To' in For-To loop\n");
-        return;
-    }
-
-    fprintf(outFile, "; %s++)\n", loop_var);
-
-    if (TokenTable[pos].type == Do)
-    {
-        pos++; 
-    }
-    else
-    {
-        printf("Error: Expected 'Do' after 'To' clause\n");
-        return;
-    }
-
-    gen_statement(outFile);
+        gen_statement(outFile);
+    } while (TokenTable[pos].type != Semicolon);
+    pos += 1;
+    fprintf(outFile, "   }\n");
 }
 void gen_for_downto_do(FILE* outFile)
 {
-    int temp_pos = pos + 1;
+    pos++;
+    char* varName = TokenTable[pos].name;
+    fprintf(outFile, "   for (");
+    fprintf(outFile, varName);
+    fprintf(outFile, " = ");
+    pos += 2;
+    fprintf(outFile, TokenTable[pos].name);
+    fprintf(outFile, "; ");
+    pos += 2;
+    fprintf(outFile, TokenTable[pos].name);
+    fprintf(outFile, " <= ");
+    fprintf(outFile, varName);
+    fprintf(outFile, "; ");
+    fprintf(outFile, varName);
+    fprintf(outFile, "--)\n   {\n");
+    pos += 2;
+    do
+    {
+        gen_statement(outFile);
+    } while (TokenTable[pos].type != Semicolon);
+    pos += 1;
+    fprintf(outFile, "   }\n");
+    /*int temp_pos = pos + 1;
 
     const char* loop_var = TokenTable[temp_pos].name;
     temp_pos += 2;
 
-    fprintf(outFile, "   for (int16_t %s = ", loop_var);
-    pos = temp_pos; 
-    gen_arithmetic_expression(outFile); 
+    fprintf(outFile, "   for (int16_t  %s = ", loop_var);
+    pos = temp_pos;
+    gen_arithmetic_expression(outFile);
     fprintf(outFile, "; ");
 
     while (TokenTable[pos].type != DownTo && pos < TokensNum)
@@ -343,7 +362,7 @@ void gen_for_downto_do(FILE* outFile)
         pos++;
 
         fprintf(outFile, "%s >= ", loop_var);
-        gen_arithmetic_expression(outFile); 
+        gen_arithmetic_expression(outFile);
     }
     else
     {
@@ -355,7 +374,7 @@ void gen_for_downto_do(FILE* outFile)
 
     if (TokenTable[pos].type == Do)
     {
-        pos++; 
+        pos++;
     }
     else
     {
@@ -363,7 +382,7 @@ void gen_for_downto_do(FILE* outFile)
         return;
     }
 
-    gen_statement(outFile);
+    gen_statement(outFile);*/
 }
 
 void gen_while_statement(FILE* outFile)
@@ -378,11 +397,11 @@ void gen_while_statement(FILE* outFile)
         if (TokenTable[pos].type == End && TokenTable[pos + 1].type == While)
         {
             pos += 2;
-            break;    
+            break;
         }
         else
         {
-            gen_statement(outFile); 
+            gen_statement(outFile);
             if (TokenTable[pos].type == Semicolon)
             {
                 pos++;
@@ -394,18 +413,17 @@ void gen_while_statement(FILE* outFile)
 }
 
 
-
 void gen_repeat_until(FILE* outFile)
 {
-    fprintf(outFile, "   do\n");
-    pos++; 
+    fprintf(outFile, "   do \n   { \n ");
+    pos++;
     do
     {
-        gen_statement(outFile);     
+        gen_statement(outFile);
     } while (TokenTable[pos].type != Until);
-    fprintf(outFile, "   while (");
-    pos++; 
-    gen_logical_expression(outFile); 
+    fprintf(outFile, " \n   }  while (");
+    pos++;
+    gen_logical_expression(outFile);
     fprintf(outFile, ");\n");
 }
 
@@ -463,7 +481,8 @@ void gen_comparison(FILE* outFile)
             // ¬ар≥ант: <арифметичний вираз> <менше-б≥льше> <арифметичний вираз>
             gen_arithmetic_expression(outFile);
             if (TokenTable[pos].type == Greate || TokenTable[pos].type == Less ||
-                TokenTable[pos].type == Equality || TokenTable[pos].type == NotEquality)
+                TokenTable[pos].type == Equality || TokenTable[pos].type == NotEquality ||
+                TokenTable[pos].type == Mod1 || TokenTable[pos].type == Mod2)
             {
                 switch (TokenTable[pos].type)
                 {
@@ -471,6 +490,8 @@ void gen_comparison(FILE* outFile)
                 case Less: fprintf(outFile, " < "); break;
                 case Equality: fprintf(outFile, " == "); break;
                 case NotEquality: fprintf(outFile, " != "); break;
+                case Mod1: fprintf(outFile, " \%% 2 == 1 "); break;
+                case Mod2: fprintf(outFile, " \%% 2 == 0 "); break;
                 }
                 pos++;
                 gen_arithmetic_expression(outFile);

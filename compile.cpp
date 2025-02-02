@@ -40,7 +40,6 @@ namespace Safe
     };
 }
 
-
 bool is_file_accessible(const char* file_path)
 {
     std::ifstream file(file_path);
@@ -72,7 +71,7 @@ void compile_to_exe(const char* source_file, const char* output_file)
         current_dir, source_file, current_dir, output_file
     );
 
-    //wprintf(L"Command: %s\n", command);
+   // wprintf(L"Command: %s\n", command);
 
     STARTUPINFO si = { 0 };
     PROCESS_INFORMATION pi = { 0 };

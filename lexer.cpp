@@ -3,7 +3,7 @@
 #include <string.h>
 #include "translator.h"
 #include <locale>
-
+unsigned int NumberOfTokens = 0;
 // функція отримує лексеми з вхідного файлу F і записує їх у таблицю лексем TokenTable 
 // результат функції - кількість лексем
 unsigned int GetTokens(FILE* F, Token TokenTable[], FILE* errFile)
@@ -11,7 +11,7 @@ unsigned int GetTokens(FILE* F, Token TokenTable[], FILE* errFile)
 	States state = Start;
 	Token TempToken;
 	// кількість лексем
-	unsigned int NumberOfTokens = 0;
+	
 	char ch, buf[16];
 	int line = 1;
 
@@ -27,6 +27,7 @@ unsigned int GetTokens(FILE* F, Token TokenTable[], FILE* errFile)
 			// якщо поточний символ маленька літера, то переходимо до стану Letter
 			// якщо поточний символ цифра, то переходимо до стану Digit
 			// якщо поточний символ пробіл, символ табуляції або переходу на новий рядок, то переходимо до стану Separators
+			// якщо поточний символ / то є ймовірність, що це коментар, переходимо до стану SComment
 			// якщо поточний символ EOF (ознака кінця файлу), то переходимо до стану EndOfFile
 			// якщо поточний символ відмінний від попередніх, то переходимо до стану Another
 		case Start:
@@ -146,16 +147,87 @@ unsigned int GetTokens(FILE* F, Token TokenTable[], FILE* errFile)
 				}
 			}
 
+			if (!strcmp(buf, "Mod"))
+			{
+				char next_buf[16];
+				int next_j = 0;
 
-			if (!strcmp(buf, "Mainprogram"))	temp_type = Mainprogram;
+				while (ch == ' ' || ch == '\t')
+				{
+					ch = getc(F);
+				}
+
+				while ((ch >= '0' && ch <= '9') && next_j < 15)
+				{
+					next_buf[next_j++] = ch;
+					ch = getc(F);
+				}
+				next_buf[next_j] = '\0';
+
+				if (!strcmp(next_buf, "1"))
+				{
+					temp_type = Mod2;
+					strcpy_s(TempToken.name, buf);
+					TempToken.type = temp_type;
+					TempToken.value = 0;
+					TempToken.line = line;
+					TokenTable[NumberOfTokens++] = TempToken;
+
+					temp_type = Number;
+					strcpy_s(TempToken.name, next_buf);
+					TempToken.type = temp_type;
+					TempToken.value = 0;
+					TempToken.line = line;
+					TokenTable[NumberOfTokens++] = TempToken;
+
+					state = Start;
+					break;
+				}
+				else if(!strcmp(next_buf, "2"))
+				{
+					temp_type = Mod1;
+					strcpy_s(TempToken.name, buf);
+					TempToken.type = temp_type;
+					TempToken.value = 0;
+					TempToken.line = line;
+					TokenTable[NumberOfTokens++] = TempToken;
+
+					temp_type = Number;
+					strcpy_s(TempToken.name, next_buf);
+					TempToken.type = temp_type;
+					TempToken.value = 0;
+					TempToken.line = line;
+					TokenTable[NumberOfTokens++] = TempToken;
+
+					state = Start;
+					break;
+				}
+				else
+				{
+					temp_type = Mod;
+					strcpy_s(TempToken.name, buf);
+					TempToken.type = temp_type;
+					TempToken.value = 0;
+					TempToken.line = line;
+					state = Finish;
+
+					for (int k = next_j - 1; k >= 0; k--)
+					{
+						ungetc(next_buf[k], F);
+					}
+					break;
+				}
+			}
+
+
+			if (!strcmp(buf, "MainProgram"))	temp_type = Mainprogram;
 			else if (!strcmp(buf, "Start"))		temp_type = StartProgram;
 			else if (!strcmp(buf, "Data"))		temp_type = Variable;
 			else if (!strcmp(buf, "Integer16"))	temp_type = Type;
 			else if (!strcmp(buf, "Read"))		temp_type = Input;
-			else if (!strcmp(buf, "Write"))	temp_type = Output;
+			else if (!strcmp(buf, "Write"))		temp_type = Output;
 
 			else if (!strcmp(buf, "Div"))		temp_type = Div;
-			else if (!strcmp(buf, "Mod"))		temp_type = Mod;
 
 			else if (!strcmp(buf, "Lt"))		temp_type = Less;
 			else if (!strcmp(buf, "Et"))		temp_type = Greate;
@@ -172,30 +244,21 @@ unsigned int GetTokens(FILE* F, Token TokenTable[], FILE* errFile)
 			else if (!strcmp(buf, "Continue"))  temp_type = Continue;
 			else if (!strcmp(buf, "Repeat"))	temp_type = Repeat;
 			else if (!strcmp(buf, "Until"))		temp_type = Until;
-			if (temp_type == Unknown && TokenTable[NumberOfTokens - 1].type == Goto)
+			if (buf[0] == '_' && (strlen(buf) == 12))
 			{
-				temp_type = Identifier;
-			}
-			else if (buf[strlen(buf) - 1] == ':')
-			{
-				buf[strlen(buf) - 1] = '\0'; 
-				temp_type = Label;
-			}
-			else if (buf[0] == '_' && (strlen(buf) == 13))
-			{				
 				bool valid = true;
 
-				for (int i = 1; i < 13; i++)
+				for (int i = 1; i < 11; i++)
 				{
-					if (!(buf[i] >= 'a' && buf[i] <= 'z') && !(buf[i] >= '0' && buf[i] <= '9'))
+					if (!(buf[i] >= 'a' && buf[i] <= 'z'))
 					{
-						valid = false; 
+						valid = false;
 						break;
 					}
 				}
 				if (valid)
 				{
-					temp_type = Identifier; 
+					temp_type = Identifier;
 				}
 			}
 			strcpy_s(TempToken.name, buf);
@@ -248,6 +311,12 @@ unsigned int GetTokens(FILE* F, Token TokenTable[], FILE* errFile)
 			ch = getc(F);
 			if (ch == '$')
 				state = Comment;
+			else {
+				TempToken.type = Unknown;
+				TempToken.value = 0;
+				TempToken.line = line;
+				state = Finish;
+			}
 			break;
 		}
 
@@ -257,12 +326,19 @@ unsigned int GetTokens(FILE* F, Token TokenTable[], FILE* errFile)
 			{
 				ch = getc(F);
 			}
+			if (ch == '\n')
+			{
+				state = Start;
+				line++;
+				ch = getc(F);
+				break;
+			}
 			if (ch == EOF)
 			{
+				//printf("Error: Comment not closed!\n");
 				state = EndOfFile;
 				break;
 			}
-			state = Start;
 			break;
 		}
 
@@ -314,19 +390,20 @@ unsigned int GetTokens(FILE* F, Token TokenTable[], FILE* errFile)
 				break;
 			}
 
+
+			
 			case ':':
 			{
 				char next = getc(F);
-			
-					strcpy_s(TempToken.name, ":");
-					TempToken.type = Colon; 
-					ungetc(next, F);        
-				
+
+				strcpy_s(TempToken.name, ":");
+				TempToken.type = Colon;
+				ungetc(next, F);
 				TempToken.value = 0;
 				TempToken.line = line;
 				ch = getc(F);
 				state = Finish;
-				break;
+				break; 
 			}
 			case '+':
 			{
@@ -338,6 +415,15 @@ unsigned int GetTokens(FILE* F, Token TokenTable[], FILE* errFile)
 					TempToken.value = 0;
 					TempToken.line = line;
 					ch = getc(F);
+					state = Finish;
+				}
+				else
+				{
+					strcpy_s(TempToken.name, "+");
+					TempToken.type = Unknown;
+					TempToken.value = 0;
+					TempToken.line = line;
+					fprintf(errFile, "Lexical Error: line %d, lexem %s is Unknown\n", line, TempToken.name);
 					state = Finish;
 				}
 				break;
@@ -358,9 +444,10 @@ unsigned int GetTokens(FILE* F, Token TokenTable[], FILE* errFile)
 				else
 				{
 					strcpy_s(TempToken.name, "-");
-					TempToken.type = Minus;
+					TempToken.type = Unknown;
 					TempToken.value = 0;
 					TempToken.line = line;
+					fprintf(errFile, "Lexical Error: line %d, lexem %s is Unknown\n", line, TempToken.name);
 					state = Finish;
 				}
 				break;
@@ -378,12 +465,21 @@ unsigned int GetTokens(FILE* F, Token TokenTable[], FILE* errFile)
 					ch = getc(F);
 					state = Finish;
 				}
+				else
+				{
+					strcpy_s(TempToken.name, "*");
+					TempToken.type = Unknown;
+					TempToken.value = 0;
+					TempToken.line = line;
+					fprintf(errFile, "Lexical Error: line %d, lexem %s is Unknown\n", line, TempToken.name);
+					state = Finish;
+				}
 				break;
 			}
 
 			case '&':
 			{
-				strcpy_s(TempToken.name, "&&");
+				strcpy_s(TempToken.name, "&");
 				TempToken.type = And;
 				TempToken.value = 0;
 				TempToken.line = line;
@@ -391,23 +487,20 @@ unsigned int GetTokens(FILE* F, Token TokenTable[], FILE* errFile)
 				state = Finish;
 				break;
 			}
-
-			case '|':
-			{
-				strcpy_s(TempToken.name, "|");
-				TempToken.type = Or;
-				TempToken.value = 0;
-				TempToken.line = line;
-				ch = getc(F);
-				state = Finish;
-				
-				
-				break;
-			}
 			case '!':
 			{
 				strcpy_s(TempToken.name, "!");
 				TempToken.type = Not;
+				TempToken.value = 0;
+				TempToken.line = line;
+				ch = getc(F);
+				state = Finish;
+				break;
+			}
+			case '|':
+			{
+				strcpy_s(TempToken.name, "|");
+				TempToken.type = Or;
 				TempToken.value = 0;
 				TempToken.line = line;
 				ch = getc(F);
@@ -431,25 +524,23 @@ unsigned int GetTokens(FILE* F, Token TokenTable[], FILE* errFile)
 						state = Finish;
 					}
 				}
-				if (ch == '>')
+				else if(ch == '>')
 				{
 					strcpy_s(TempToken.name, "<>");
 					TempToken.type = NotEquality;
 					TempToken.value = 0;
 					TempToken.line = line;
+					ch = getc(F);
 					state = Finish;
 				}
-				break;
-			}
-
-			case '>':
-			{
-				strcpy_s(TempToken.name, ">");
-				TempToken.type = Greate;
-				TempToken.value = 0;
-				TempToken.line = line;
-				ch = getc(F);
-				state = Finish;
+				else
+				{
+					strcpy_s(TempToken.name, "<");
+					TempToken.type = Less;
+					TempToken.value = 0;
+					TempToken.line = line;
+					state = Finish;			
+				}
 				break;
 			}
 
@@ -519,7 +610,7 @@ void PrintTokens(Token TokenTable[], unsigned int TokensNum)
 			break;
 		case If:
 			strcpy_s(type_tokens, "If");
-			break;	
+			break;
 		case Else:
 			strcpy_s(type_tokens, "Else");
 			break;
@@ -540,6 +631,12 @@ void PrintTokens(Token TokenTable[], unsigned int TokensNum)
 			break;
 		case Mod:
 			strcpy_s(type_tokens, "Mod");
+			break;
+		case Mod1:
+			strcpy_s(type_tokens, "Mod_odd");
+			break;
+		case Mod2:
+			strcpy_s(type_tokens, "Mod_pair");
 			break;
 		case Equality:
 			strcpy_s(type_tokens, "Equality");
@@ -573,6 +670,9 @@ void PrintTokens(Token TokenTable[], unsigned int TokensNum)
 			break;
 		case Semicolon:
 			strcpy_s(type_tokens, "Semicolon");
+			break;
+		case Colon:
+			strcpy_s(type_tokens, "Colon");
 			break;
 		case Comma:
 			strcpy_s(type_tokens, "Comma");
@@ -609,9 +709,6 @@ void PrintTokens(Token TokenTable[], unsigned int TokensNum)
 			break;
 		case Until:
 			strcpy_s(type_tokens, "Until");
-			break;
-		case Label:
-			strcpy_s(type_tokens, "Label");
 			break;
 		case Unknown:
 		default:
@@ -696,6 +793,12 @@ void PrintTokensToFile(char* FileName, Token TokenTable[], unsigned int TokensNu
 		case Mod:
 			strcpy_s(type_tokens, "Mod");
 			break;
+		case Mod1:
+			strcpy_s(type_tokens, "Mod_odd");
+			break;
+		case Mod2:
+			strcpy_s(type_tokens, "Mod_pair");
+			break;
 		case Equality:
 			strcpy_s(type_tokens, "Equality");
 			break;
@@ -728,6 +831,9 @@ void PrintTokensToFile(char* FileName, Token TokenTable[], unsigned int TokensNu
 			break;
 		case Semicolon:
 			strcpy_s(type_tokens, "Semicolon");
+			break;
+		case Colon:
+			strcpy_s(type_tokens, "Colon");
 			break;
 		case Comma:
 			strcpy_s(type_tokens, "Comma");
@@ -765,9 +871,7 @@ void PrintTokensToFile(char* FileName, Token TokenTable[], unsigned int TokensNu
 		case Until:
 			strcpy_s(type_tokens, "Until");
 			break;
-		case Label:
-			strcpy_s(type_tokens, "Label");
-			break;
+
 		case Unknown:
 		default:
 			strcpy_s(type_tokens, "Unknown");

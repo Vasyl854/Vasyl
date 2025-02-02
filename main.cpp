@@ -128,11 +128,11 @@ int main(int argc, char* argv[])
     strcpy_s(ExecutableFile, NameFile);
     strcat_s(ExecutableFile, ".exe");
     compile_to_exe(OutputFile, ExecutableFile);
-
+    
     char OutputFileFromAST[32];
     strcpy_s(OutputFileFromAST, NameFile);
     strcat_s(OutputFileFromAST, "_fromAST.c");
-
+    
     FILE* outFileFromAST;
     fopen_s(&outFileFromAST, OutputFileFromAST, "w");
     if (!outFileFromAST)
@@ -142,9 +142,9 @@ int main(int argc, char* argv[])
     }
     generateCodefromAST(ASTree, outFileFromAST);
     printf("\nC code has been generated and written to %s.\n", OutputFileFromAST);
-
+    
     fclose(outFileFromAST);
-
+    
     fopen_s(&outFileFromAST, OutputFileFromAST, "r");
     char ExecutableFileFromAST[32];
     strcpy_s(ExecutableFileFromAST, NameFile);

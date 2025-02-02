@@ -13,8 +13,8 @@ void generateCodefromAST(ASTNode* node, FILE* outFile)
 
     switch (node->nodetype)
     {
-    case program_node:
-        fprintf(outFile, "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\nint main() \n{\n");
+   case program_node:
+        fprintf(outFile, "#include <stdio.h>\n#include <stdlib.h>\n\nint main() \n{\n");
         generateCodefromAST(node->left, outFile);  // Оголошення змінних
         generateCodefromAST(node->right, outFile); // Тіло програми
         fprintf(outFile, "   system(\"pause\");\n ");
@@ -28,7 +28,7 @@ void generateCodefromAST(ASTNode* node, FILE* outFile)
             //fprintf(outFile, ", ");
             generateCodefromAST(node->right, outFile);  // Рекурсивно генеруємо код для інших змінних
         }
-        fprintf(outFile, "   int16_t ");  // Виводимо тип змінних (в даному випадку int)     
+        fprintf(outFile, "   int ");  // Виводимо тип змінних (в даному випадку int)     
         generateCodefromAST(node->left, outFile);
         fprintf(outFile, ";\n");  // Завершуємо оголошення змінних
         break;
@@ -81,6 +81,7 @@ void generateCodefromAST(ASTNode* node, FILE* outFile)
         fprintf(outFile, ")");
         break;
 
+
     case div_node:
         fprintf(outFile, "(");
         generateCodefromAST(node->left, outFile);
@@ -93,12 +94,12 @@ void generateCodefromAST(ASTNode* node, FILE* outFile)
         fprintf(outFile, "   printf(\"Enter ");
         generateCodefromAST(node->left, outFile);
         fprintf(outFile, ":\");\n");
-        fprintf(outFile, "   scanf(\"%%hd\", &");
+        fprintf(outFile, "   scanf(\"%%d\", &");
         generateCodefromAST(node->left, outFile);
         fprintf(outFile, ");\n");
         break;
 
-    case output_node: 
+    case output_node:
         fprintf(outFile, "   printf(\"%%d\\n\", ");
         generateCodefromAST(node->left, outFile);
 
@@ -111,13 +112,16 @@ void generateCodefromAST(ASTNode* node, FILE* outFile)
 
     case if_node:
         fprintf(outFile, "   if (");
-        generateCodefromAST(node->left, outFile); 
+        generateCodefromAST(node->left, outFile);
         fprintf(outFile, ") \n");
-        generateCodefromAST(node->right->left, outFile); 
+        fprintf(outFile, "{ \n");
+        generateCodefromAST(node->right->left, outFile);
+        fprintf(outFile, "} \n");
         if (node->right->right != NULL)
-        { 
-            fprintf(outFile, "   else\n");
+        {
+            fprintf(outFile, "   else{\n");
             generateCodefromAST(node->right->right, outFile);
+            fprintf(outFile, "} \n");
         }
         break;
 
@@ -126,46 +130,48 @@ void generateCodefromAST(ASTNode* node, FILE* outFile)
         break;
 
     case label_node:
-        fprintf(outFile, "%s:\n", node->name); 
+        fprintf(outFile, "%s:\n", node->name);
         break;
 
 
     case for_to_node:
-        fprintf(outFile, "   for (int16_t ");
-        generateCodefromAST(node->left->left, outFile); 
+        fprintf(outFile, "   for (int ");
+        generateCodefromAST(node->left->left, outFile);
         fprintf(outFile, " = ");
-        generateCodefromAST(node->left->right, outFile); 
+        generateCodefromAST(node->left->right, outFile);
         fprintf(outFile, "; ");
-        generateCodefromAST(node->left->left, outFile); 
+        generateCodefromAST(node->left->left, outFile);
         fprintf(outFile, " <= ");
-        generateCodefromAST(node->right->left, outFile); 
+        generateCodefromAST(node->right->left, outFile);
         fprintf(outFile, "; ");
-        generateCodefromAST(node->left->left, outFile); 
-        fprintf(outFile, "++)\n");
-        generateCodefromAST(node->right->right, outFile); 
+        generateCodefromAST(node->left->left, outFile);
+        fprintf(outFile, "++){\n");
+        generateCodefromAST(node->right->right, outFile);
+        fprintf(outFile, "}\n");
         break;
 
     case for_downto_node:
-        fprintf(outFile, "   for (int16_t ");
-        generateCodefromAST(node->left->left, outFile); 
+        fprintf(outFile, "   for (int ");
+        generateCodefromAST(node->left->left, outFile);
         fprintf(outFile, " = ");
-        generateCodefromAST(node->left->right, outFile); 
+        generateCodefromAST(node->left->right, outFile);
         fprintf(outFile, "; ");
-        generateCodefromAST(node->left->left, outFile); 
+        generateCodefromAST(node->left->left, outFile);
         fprintf(outFile, " >= ");
-        generateCodefromAST(node->right->left, outFile); 
+        generateCodefromAST(node->right->left, outFile);
         fprintf(outFile, "; ");
-        generateCodefromAST(node->left->left, outFile); 
-        fprintf(outFile, "--)\n");
+        generateCodefromAST(node->left->left, outFile);
+        fprintf(outFile, "--){\n");
         generateCodefromAST(node->right->right, outFile);
+        fprintf(outFile, "}\n");
         break;
 
     case while_node:
         fprintf(outFile, "   while (");
-        generateCodefromAST(node->left, outFile); 
+        generateCodefromAST(node->left, outFile);
         fprintf(outFile, ")\n");
         fprintf(outFile, "   {\n");
-        generateCodefromAST(node->right, outFile); 
+        generateCodefromAST(node->right, outFile);
         fprintf(outFile, "   }\n");
         break;
 
@@ -179,11 +185,21 @@ void generateCodefromAST(ASTNode* node, FILE* outFile)
 
 
     case repeat_until_node:
-        fprintf(outFile, "   do\n");
-        generateCodefromAST(node->left, outFile); 
-        fprintf(outFile, "   while (");
+        fprintf(outFile, "   do{\n");
+        generateCodefromAST(node->left, outFile);
+        fprintf(outFile, "   } while (");
         generateCodefromAST(node->right, outFile);
         fprintf(outFile, ");\n");
+        break;
+
+     
+
+    case sequence_node:
+        fprintf(outFile, "   \n");
+        generateCodefromAST(node->left, outFile);
+        //fprintf(outFile, "   } while (");
+        generateCodefromAST(node->right, outFile);
+        //fprintf(outFile, ");\n");
         break;
 
     case or_node:
@@ -208,23 +224,34 @@ void generateCodefromAST(ASTNode* node, FILE* outFile)
         fprintf(outFile, ")");
         break;
 
-    case minus_node:
-        fprintf(outFile, "-");
-        generateCodefromAST(node->left, outFile);
-        break;
-
     case cmp_node:
         generateCodefromAST(node->left, outFile);
         if (!strcmp(node->name, "="))
             fprintf(outFile, " == ");
-        else  if (!strcmp(node->name, "<>"))          
-            fprintf(outFile, " != ");
-            else if (!strcmp(node->name, "Lt"))
-            fprintf(outFile, " < ");
-            else if (!strcmp(node->name, "Et"))
-            fprintf(outFile, " > ");
+        else
+            if (!strcmp(node->name, "<>"))
+                fprintf(outFile, " != ");
             else
+                if (!strcmp(node->name, "Et"))
+                    fprintf(outFile, " > ");
+                else
+                    if (!strcmp(node->name, "Lt"))
+                        fprintf(outFile, " < ");
+                    else
+                if (!strcmp(node->name, "Mod1")) {
+                    fprintf(outFile, " %% 2 == 1 ");
+                    generateCodefromAST(node->right->right, outFile);
+                    break;
+                }
+                else
+                    if (!strcmp(node->name, "Mod2")) {
+                        fprintf(outFile, " %% 2 == 0 ");
+                        generateCodefromAST(node->right->right, outFile);
+                        break;
+                    }
+                    else
                 fprintf(outFile, " %s ", node->name);
+
         generateCodefromAST(node->right, outFile);
         break;
 

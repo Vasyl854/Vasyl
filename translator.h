@@ -2,7 +2,7 @@
 
 #define MAX_TOKENS 1000
 #define MAX_IDENTIFIER 10
-
+extern unsigned int NumberOfTokens ;
 // перерахування, яке описує всі можливі типи лексем
 enum TypeOfTokens
 {
@@ -14,12 +14,11 @@ enum TypeOfTokens
     Input,			
     Output,			
 
-    If,	    		
-    Then,			
+    If,	    				
     Else,           
 
     Goto,         
-    Label,
+
 
     For,          
     To,           
@@ -41,7 +40,9 @@ enum TypeOfTokens
     Sub,			
     Mul,			
     Div,			
-    Mod,            
+    Mod,    
+    Mod1,
+    Mod2,
     Equality,		
     NotEquality,	
     Greate,		    
@@ -53,8 +54,7 @@ enum TypeOfTokens
     RBraket,		
     Semicolon,		
     Colon,		    
-    Comma,	
-    Minus,
+    Comma,			
     Unknown
 };
 
@@ -110,6 +110,7 @@ enum TypeOfNodes
     continue_while_node,
 
     repeat_until_node,
+    sequence_node,
 
     id_node,
     num_node,
@@ -123,7 +124,6 @@ enum TypeOfNodes
     and_node,
     not_node,
     cmp_node,
-    minus_node,
     statement_node,
     compount_node
 };
